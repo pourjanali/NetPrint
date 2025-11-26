@@ -238,19 +238,6 @@
         // Multiple IP detection services for better reliability
         const ipServices = [
             {
-                name: 'ipapi.co',
-                url: 'https://ipapi.co/json/',
-                mapper: (data) => ({
-                    ip: data.ip,
-                    country: data.country_name,
-                    city: data.city,
-                    region: data.region,
-                    timezone: data.timezone,
-                    isp: data.org,
-                    as: `AS${data.asn}`
-                })
-            },
-            {
                 name: 'ip-api.com',
                 url: 'http://ip-api.com/json/',
                 mapper: (data) => ({
@@ -263,45 +250,6 @@
                     as: data.as
                 })
             },
-            {
-                name: 'ipinfo.io',
-                url: 'https://ipinfo.io/json',
-                mapper: (data) => ({
-                    ip: data.ip,
-                    country: data.country,
-                    city: data.city,
-                    region: data.region,
-                    timezone: data.timezone,
-                    isp: data.org,
-                    as: data.org.split(' ')[0] // Extract AS number from org
-                })
-            },
-            {
-                name: 'jsonip.com',
-                url: 'https://jsonip.com',
-                mapper: (data) => ({
-                    ip: data.ip,
-                    country: 'Unknown',
-                    city: 'Unknown',
-                    region: 'Unknown',
-                    timezone: 'Unknown',
-                    isp: 'Unknown',
-                    as: 'Unknown'
-                })
-            },
-            {
-                name: 'api.ipify.org',
-                url: 'https://api.ipify.org?format=json',
-                mapper: (data) => ({
-                    ip: data.ip,
-                    country: 'Unknown',
-                    city: 'Unknown',
-                    region: 'Unknown',
-                    timezone: 'Unknown',
-                    isp: 'Unknown',
-                    as: 'Unknown'
-                })
-            }
         ];
 
         // Function to try multiple IP services
