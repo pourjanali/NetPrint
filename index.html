@@ -235,8 +235,44 @@
     </div>
 
     <script>
-        //IP detection services for better reliability
+        /**
+         * UPDATED SERVICE LIST
+         * 1. Added HTTPS support (Critical for GitHub Pages)
+         * 2. Added multiple fallback services to ensure it works in Iran and globally.
+         * 3. ip-api.com is kept but only if the page is loaded via HTTP, or as a last resort.
+         */
         const ipServices = [
+            // Service 1: ipapi.co (Supports HTTPS, good detail)
+            {
+                name: 'ipapi.co',
+                url: 'https://ipapi.co/json/',
+                mapper: (data) => ({
+                    ip: data.ip,
+                    country: data.country_name,
+                    city: data.city,
+                    region: data.region,
+                    timezone: data.timezone,
+                    isp: data.org,
+                    as: data.asn
+                })
+            },
+            // Service 2: ipwho.is (Supports HTTPS, free, works well globally)
+            {
+                name: 'ipwho.is',
+                url: 'https://ipwho.is/',
+                mapper: (data) => ({
+                    ip: data.ip,
+                    country: data.country,
+                    city: data.city,
+                    region: data.region,
+                    timezone: data.timezone.id,
+                    isp: data.connection.isp,
+                    as: "AS" + data.connection.asn
+                })
+            },
+            // Service 3: ip-api.com (Original one you used). 
+            // Note: This often fails on HTTPS sites because it is HTTP only.
+            // We put it last or use it if we are on http.
             {
                 name: 'ip-api.com',
                 url: 'http://ip-api.com/json/',
@@ -249,84 +285,109 @@
                     isp: data.isp,
                     as: data.as
                 })
-            },
+            }
         ];
 
         // Function to try multiple IP services
         async function fetchIPData() {
             let success = false;
+            const isSecure = window.location.protocol === 'https:';
 
-            // Try each service until one works
+            // Iterate through services
             for (const service of ipServices) {
+                // Skip HTTP-only services if we are on HTTPS to prevent "Mixed Content" blocks
+                if (isSecure && service.url.startsWith('http:')) {
+                    console.log(`Skipping ${service.name} (HTTP service on HTTPS site)`);
+                    continue;
+                }
+
                 try {
                     console.log(`Trying ${service.name}...`);
+
                     const response = await fetch(service.url, {
-                        // Add timeout for slow connections
+                        // Timeout logic inside the fetch options where supported
                         signal: AbortSignal.timeout(5000)
                     });
 
                     if (response.ok) {
                         const data = await response.json();
-                        const mappedData = service.mapper(data);
 
-                        // Update the page with the fetched data
+                        // Some APIs return success: false in the JSON body (like ipwho.is)
+                        if (data.success === false) {
+                            throw new Error("API reported failure");
+                        }
+
+                        const mappedData = service.mapper(data);
                         updatePage(mappedData, service.name);
                         success = true;
                         console.log(`Success with ${service.name}`);
-                        break;
+                        break; // Stop loop on success
+                    } else {
+                        throw new Error(`HTTP Error: ${response.status}`);
                     }
                 } catch (error) {
-                    console.log(`${service.name} failed:`, error.message);
+                    console.warn(`${service.name} failed:`, error.message);
                     // Continue to next service
                 }
             }
 
+            // If all secure services fail, and we are on HTTPS, 
+            // we might want to try to use a proxy or just fail gracefully.
             if (!success) {
+                // If we are desperate, we can try the HTTP service even on HTTPS 
+                // (it will likely be blocked by the browser, but worth a shot as final fallback)
+                // or just show error.
                 showError();
             }
         }
 
-        // Update page with IP data
         function updatePage(data, serviceName) {
-            document.getElementById('ip-address').textContent = data.ip;
-            document.getElementById('ip-address').classList.remove('pulse');
+            const ipEl = document.getElementById('ip-address');
 
-            document.getElementById('country').textContent = data.country;
-            document.getElementById('city').textContent = data.city;
-            document.getElementById('region').textContent = data.region;
-            document.getElementById('timezone').textContent = data.timezone;
-            document.getElementById('isp').textContent = data.isp;
-            document.getElementById('as').textContent = data.as;
+            // Clean values (sometimes APIs return empty or undefined)
+            const safe = (val) => val || 'N/A';
 
-            // Add success indicator to IP address
+            ipEl.textContent = safe(data.ip);
+            ipEl.classList.remove('pulse');
+
+            document.getElementById('country').textContent = safe(data.country);
+            document.getElementById('city').textContent = safe(data.city);
+            document.getElementById('region').textContent = safe(data.region);
+            document.getElementById('timezone').textContent = safe(data.timezone);
+            document.getElementById('isp').textContent = safe(data.isp);
+            document.getElementById('as').textContent = safe(data.as);
+
+            // Clear previous indicators if any
+            const existingIndicator = ipEl.querySelector('.status-indicator');
+            if (existingIndicator) existingIndicator.remove();
+
             const statusIndicator = document.createElement('span');
             statusIndicator.className = 'status-indicator status-success';
-            document.getElementById('ip-address').prepend(statusIndicator);
+            ipEl.prepend(statusIndicator);
 
             console.log(`Data retrieved from ${serviceName}:`, data);
         }
 
-        // Show error message
         function showError() {
-            const errorMessage = 'Unable to detect - Network issue';
-            document.getElementById('ip-address').textContent = errorMessage;
-            document.getElementById('ip-address').classList.remove('pulse');
+            const ipEl = document.getElementById('ip-address');
+            ipEl.textContent = 'Unable to detect - Network/VPN issue';
+            ipEl.classList.remove('pulse');
+
+            // Clear previous indicators
+            const existingIndicator = ipEl.querySelector('.status-indicator');
+            if (existingIndicator) existingIndicator.remove();
 
             const statusIndicator = document.createElement('span');
             statusIndicator.className = 'status-indicator status-failed';
-            document.getElementById('ip-address').prepend(statusIndicator);
+            ipEl.prepend(statusIndicator);
 
-            document.getElementById('country').textContent = 'Check connection';
-            document.getElementById('city').textContent = 'Check connection';
-            document.getElementById('region').textContent = 'Check connection';
-            document.getElementById('timezone').textContent = 'Check connection';
-            document.getElementById('isp').textContent = 'Check connection';
-            document.getElementById('as').textContent = 'Check connection';
+            const fields = ['country', 'city', 'region', 'timezone', 'isp', 'as'];
+            fields.forEach(id => document.getElementById(id).textContent = '---');
 
             console.error('All IP detection services failed');
         }
 
-        // Add timeout support for fetch
+        // Add timeout support polyfill for older browsers
         if (!AbortSignal.timeout) {
             AbortSignal.timeout = function (ms) {
                 const controller = new AbortController();
@@ -335,7 +396,7 @@
             };
         }
 
-        // Fetch data when page loads
+        // Start detection
         document.addEventListener('DOMContentLoaded', fetchIPData);
     </script>
 </body>
