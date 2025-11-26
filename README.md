@@ -2,8 +2,6 @@
 
 A sleek, modern web service that automatically detects and displays your public IP address and location information in real-time.
 
-![NetPrint Screenshot](https://via.placeholder.com/800x400/1e3c72/ffffff?text=NetPrint+-+IP+%26+Location+Detector)
-
 ## 🌟 Features
 
 - **Real-time IP Detection**: Automatically detects your public IP address
